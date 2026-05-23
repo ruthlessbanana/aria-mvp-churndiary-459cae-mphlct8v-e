@@ -1,4 +1,4 @@
 {
-  "title": "Template App",
-  "description": "Centralized baseline ready for idea-specific features."
+  "title": "ChurnDiary",
+  "description": "Log every subscription you cancel, why you left, and what you hoped for — ChurnDiary builds your personal 'what I actually keep vs. regret' ledger and reminds you 7 days before any new free trial converts, so you stop re-subscribing to things you already know disappoint you. Switch trigger: unlike generic budget trackers, ChurnDiary remembers the qualitative reason you left each service, not just the dollar amount, so the next 'free trial' popup gets a personal warning instead of amnesia."
 }
