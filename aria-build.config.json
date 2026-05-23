@@ -1,17 +1,39 @@
 {
-  "appName": "Template App",
-  "appTagline": "Free consumer web baseline — extend under Home.",
-  "ideaId": "template-idea",
+  "appName": "ChurnDiary",
+  "appTagline": "Log every subscription you cancel, why you left, and what you hoped for — ChurnDiary builds your personal 'what I actually keep vs. regret' ledger and reminds you 7 days before any new free trial converts, so you stop re-subscribing to things you already know disappoint you. Switch trigger: unlike generic budget trackers, ChurnDiary remembers the qualitative reason you left each service, not just the dollar amount, so the next 'free trial' popup gets a personal warning instead of amnesia.",
+  "ideaId": "459cae70-2086-4e3f-8b8e-7e8bf11e31af",
   "monetizationMode": "has_free_tier",
+  "supportEmail": "cs@gmail.com",
+  "plans": [
+    {
+      "tierSlug": "starter",
+      "displayName": "Starter",
+      "amount": 0,
+      "currency": "USD",
+      "interval": "month",
+      "isFree": true
+    }
+  ],
+  "gating": {
+    "requireActiveSubscriptionForProtectedActions": false,
+    "gatedRoutes": [],
+    "hasPaidPlan": false
+  },
   "pricing": {
-    "planName": "Free",
+    "planName": "Starter",
     "amount": 0,
     "currency": "USD",
     "interval": "month"
   },
-  "integrations": ["neon", "github", "vercel"],
+  "integrations": [
+    "neon",
+    "stripe",
+    "github",
+    "vercel"
+  ],
   "branding": {
-    "primaryColor": "#111111",
-    "accentColor": "#525252"
+    "primaryColor": "#171717",
+    "accentColor": "#f5f5f5",
+    "logoUrl": "/brand/logo.png"
   }
 }
