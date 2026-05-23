@@ -1,0 +1,16 @@
+{
+  "appName": "HabitLoop",
+  "appTagline": "Track daily habits and streaks in a simple mobile-friendly app.",
+  "ideaId": "idea_consumer_example",
+  "monetizationMode": "has_free_tier",
+  "pricing": {
+    "amount": 0,
+    "currency": "USD",
+    "interval": "month"
+  },
+  "integrations": ["neon", "github", "vercel"],
+  "branding": {
+    "primaryColor": "#111111",
+    "accentColor": "#525252"
+  }
+}
