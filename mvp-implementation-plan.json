@@ -1,0 +1,35 @@
+{
+  "primaryAppRoutes": [
+    "/api",
+    "/auth",
+    "/home",
+    "/home/cancellations/[id]",
+    "/home/cancellations/[id]/edit",
+    "/home/cancellations/new",
+    "/home/trials/[id]",
+    "/home/trials/[id]/edit",
+    "/home/trials/new",
+    "/login",
+    "/settings",
+    "/settings/notifications",
+    "/share/[token]"
+  ],
+  "plannedSqlMigrationFiles": [
+    "db/migrations/0005_cancellation_entries.sql",
+    "db/migrations/0006_trial_entries.sql",
+    "db/migrations/0007_notification_preferences.sql"
+  ],
+  "newSqlTableNames": [
+    "cancellation_entries",
+    "notification_preferences",
+    "trial_entries"
+  ],
+  "usedHelpers": [
+    "errJson",
+    "okJson",
+    "parseJsonBody",
+    "requireSession",
+    "sendEmail",
+    "withApiErrorHandling"
+  ]
+}

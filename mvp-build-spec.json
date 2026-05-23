@@ -1,0 +1,813 @@
+{
+  "specVersion": 2,
+  "summary": "ChurnDiary is a personal subscription cancellation ledger for individual users. After signing in, you log every subscription you've cancelled — recording the service name, cancellation date, money saved, qualitative reason you left, and your mood at the time. You can also log upcoming free trials with a conversion date; the app runs a daily background job and sends you an email reminder 7 days before any trial converts, so you never get silently charged. A personal stats bar aggregates your cancellation history. Public share links let you share your cancellation diary with friends. Core product is completely free to use.",
+  "primaryAppRoutes": [
+    "/home",
+    "/home/cancellations/new",
+    "/home/cancellations/[id]",
+    "/home/cancellations/[id]/edit",
+    "/home/trials/new",
+    "/home/trials/[id]",
+    "/home/trials/[id]/edit",
+    "/settings",
+    "/settings/notifications",
+    "/share/[token]",
+    "/api",
+    "/login",
+    "/auth"
+  ],
+  "newSqlTables": [
+    {
+      "name": "cancellation_entries",
+      "purpose": "Stores each subscription cancellation log: service name, cancel date, monthly cost saved, qualitative reason, mood rating, and optional notes. Scoped per user."
+    },
+    {
+      "name": "trial_entries",
+      "purpose": "Stores free trial log entries: service name, trial start date, trial conversion date, reminder_sent flag, and status (active/cancelled/converted). Scoped per user."
+    },
+    {
+      "name": "notification_preferences",
+      "purpose": "Stores per-user email notification preferences: reminder_days_before (default 7), email_enabled boolean. UPSERTs to keep one row per user."
+    }
+  ],
+  "plannedSqlMigrationFiles": [
+    "db/migrations/0005_cancellation_entries.sql",
+    "db/migrations/0006_trial_entries.sql",
+    "db/migrations/0007_notification_preferences.sql"
+  ],
+  "routeAnchoredCapabilities": [
+    {
+      "statement": "Log a subscription cancellation with service name, cancel date, monthly cost saved, qualitative reason, and mood rating — building your personal cancellation ledger.",
+      "anchoredRoutes": [
+        "/home/cancellations/new",
+        "/home/cancellations/[id]",
+        "/home"
+      ]
+    },
+    {
+      "statement": "Log an upcoming free trial with its conversion date; the app emails you 7 days before the trial converts so you never get silently charged.",
+      "anchoredRoutes": [
+        "/home/trials/new",
+        "/home/trials/[id]",
+        "/home"
+      ]
+    },
+    {
+      "statement": "View a personal stats bar summarising total monthly savings, cancellation count, and active trials being watched.",
+      "anchoredRoutes": [
+        "/home"
+      ]
+    },
+    {
+      "statement": "Edit or delete any cancellation or trial entry to keep your ledger accurate.",
+      "anchoredRoutes": [
+        "/home/cancellations/[id]/edit",
+        "/home/trials/[id]/edit",
+        "/home/cancellations/[id]",
+        "/home/trials/[id]"
+      ]
+    },
+    {
+      "statement": "Share a public read-only view of your cancellation diary via a unique link — no login required for visitors.",
+      "anchoredRoutes": [
+        "/share/[token]",
+        "/home/cancellations/[id]"
+      ]
+    },
+    {
+      "statement": "Configure trial reminder email preferences (days-before threshold, enable/disable) from the Notifications settings tab.",
+      "anchoredRoutes": [
+        "/settings/notifications"
+      ]
+    }
+  ],
+  "screens": [
+    {
+      "id": "home",
+      "name": "Home — ChurnDiary Ledger",
+      "purpose": "Primary logged-in surface. Shows a stats bar (total cancelled, total monthly savings, active trials watched). Two tab sections below: Cancellations list and Active Trials list. Persistent '+ Log Cancellation' and '+ Add Trial' header CTAs always visible. Empty states link to the same create routes. Mobile-first card layout."
+    },
+    {
+      "id": "cancellation_new",
+      "name": "Log Cancellation",
+      "purpose": "Create form for a new cancellation entry. Fields: service name, cancel date, monthly cost saved, reason (select), mood (select 1–5), optional notes. Submit button 'Log Cancellation'. Back-link breadcrumb to /home."
+    },
+    {
+      "id": "cancellation_detail",
+      "name": "Cancellation Detail",
+      "purpose": "Read-only detail page for a single cancellation. Shows all fields, a 'Copy share link' button, Edit and Delete actions. Breadcrumb back to /home."
+    },
+    {
+      "id": "cancellation_edit",
+      "name": "Edit Cancellation",
+      "purpose": "Edit form pre-filled with existing cancellation data. Same fields as create. Submit 'Save Changes'. Breadcrumb back to detail page."
+    },
+    {
+      "id": "trial_new",
+      "name": "Add Trial",
+      "purpose": "Create form for a free trial entry. Fields: service name, trial start date, trial conversion date, optional notes. Submit 'Add Trial'. Back-link breadcrumb to /home."
+    },
+    {
+      "id": "trial_detail",
+      "name": "Trial Detail",
+      "purpose": "Detail page for a trial entry. Shows dates, countdown to conversion, reminder status, notes, status badge. Actions: Mark as Cancelled, Mark as Converted, Edit, Delete. Breadcrumb back to /home."
+    },
+    {
+      "id": "trial_edit",
+      "name": "Edit Trial",
+      "purpose": "Edit form pre-filled with existing trial data. Same fields as create plus status select. Submit 'Save Changes'. Breadcrumb back to trial detail."
+    },
+    {
+      "id": "public_share",
+      "name": "Public Cancellation Diary",
+      "purpose": "Unauthenticated public page at /share/[token]. Shows owner's cancellation entries (service name, reason, mood, date) in card layout. No cost data shown. Footer link to /auth/sign-up."
+    },
+    {
+      "id": "settings_notifications",
+      "name": "Notification Settings",
+      "purpose": "Settings tab at /settings/notifications. Form to configure email reminders enabled (checkbox) and days-before threshold (number, default 7). Save Changes button with explanatory copy about the trial watchdog emails."
+    }
+  ],
+  "primaryUserFlow": [
+    {
+      "step": 1,
+      "title": "Sign up / sign in",
+      "detail": "User visits the app and signs in via Google OAuth or email. On first login they land on /home with empty cancellation and trial lists."
+    },
+    {
+      "step": 2,
+      "title": "Log a cancellation",
+      "detail": "User clicks '+ Log Cancellation' in the persistent header (always visible), lands on /home/cancellations/new, fills in the form, clicks 'Log Cancellation'. Redirected to /home where the new entry appears in the Cancellations list."
+    },
+    {
+      "step": 3,
+      "title": "View cancellation detail",
+      "detail": "User clicks a cancellation row, navigates to /home/cancellations/[id]. Page includes a breadcrumb back to /home, Edit and Delete buttons, and a 'Copy share link' button that copies the public /share/[token] URL to clipboard."
+    },
+    {
+      "step": 4,
+      "title": "Log a free trial",
+      "detail": "User clicks '+ Add Trial' in the persistent header, lands on /home/trials/new, enters service name and dates, clicks 'Add Trial'. Redirected to /home where the trial appears in the Active Trials list with a countdown badge."
+    },
+    {
+      "step": 5,
+      "title": "Receive 7-day trial reminder",
+      "detail": "A daily background job checks all active trials. When a trial's conversion date is within the user's configured reminder window and reminder_sent is false, the job sends a Resend email and sets reminder_sent=true."
+    },
+    {
+      "step": 6,
+      "title": "Mark trial outcome",
+      "detail": "User visits /home/trials/[id] and clicks 'Mark as Cancelled' or 'Mark as Converted' to update the trial status."
+    },
+    {
+      "step": 7,
+      "title": "Edit or delete an entry",
+      "detail": "From any detail page the user clicks Edit, updates fields, and saves. The Delete button (with confirmation modal) removes the row and redirects to /home."
+    },
+    {
+      "step": 8,
+      "title": "Share cancellation diary",
+      "detail": "User clicks 'Copy share link' on a cancellation detail page. The /share/[token] link is copied to clipboard and is accessible to unauthenticated visitors."
+    },
+    {
+      "step": 9,
+      "title": "Configure notification preferences",
+      "detail": "User navigates to /settings/notifications, toggles email reminders on/off and adjusts the days-before threshold, then clicks 'Save Changes'. The background job reads these preferences when evaluating reminder timing."
+    }
+  ],
+  "capabilityBullets": [
+    "Log subscription cancellations with service name, cancel date, monthly cost saved, reason (preset options), and mood rating (1–5)",
+    "Log free trials with start date and conversion date to trigger the 7-day email watchdog reminder",
+    "Daily background job checks active trials and emails you via Resend 7 days before conversion — sets reminder_sent to prevent duplicates",
+    "Personal stats bar on /home: total cancellations logged, total monthly savings, active trials being watched",
+    "Cancellations list and Active Trials list on /home with persistent header CTAs in both empty and populated states",
+    "Cancellation detail page with Edit, Delete, and 'Copy share link' actions",
+    "Trial detail page with Mark as Cancelled and Mark as Converted status transitions, Edit, and Delete",
+    "Public read-only /share/[token] page showing your cancellation diary to unauthenticated visitors (no cost data exposed)",
+    "Notification preferences settings tab: toggle email reminders on/off and configure days-before threshold (default 7)",
+    "Mobile-first responsive card layouts throughout — readable on narrow screens with no clipped controls"
+  ],
+  "outOfScope": [
+    "Paid app subscription or freemium paywall — core product is entirely free",
+    "Stripe checkout for app access, /billing route, or requireActiveSubscription gates",
+    "SMS or push notification reminders",
+    "AI-generated cancellation summaries or recommendations",
+    "Automatic subscription detection via bank or Plaid integration",
+    "Importing cancellation history from external services",
+    "Custom domain or white-label diary pages",
+    "Team or household multi-user shared ledgers",
+    "Budget tracking or net-worth dashboards beyond basic monthly savings sum",
+    "Native iOS or Android app"
+  ],
+  "dataAndIntegrations": [
+    "cancellation_entries table: id, user_id (FK → user.id), service_name text, cancel_date date, monthly_cost_saved numeric nullable, reason text (price/quality/unused/found_better/other), reason_notes text nullable, mood smallint (1–5), share_token text unique nullable, created_at timestamptz",
+    "trial_entries table: id, user_id (FK → user.id), service_name text, trial_start_date date, trial_conversion_date date, notes text nullable, status text (active/cancelled/converted default active), reminder_sent boolean default false, created_at timestamptz",
+    "notification_preferences table: id, user_id (FK → user.id, unique), email_enabled boolean default true, reminder_days_before smallint default 7, updated_at timestamptz",
+    "Background job (cron 0 8 * * *): queries trial_entries WHERE status='active' AND reminder_sent=false AND trial_conversion_date <= CURRENT_DATE + (reminder_days_before || ' days')::interval; sends one Resend email per matching row then sets reminder_sent=true; errors written to app_events",
+    "Resend email (platform/founder credentials, byok=false): trial conversion reminder and trial creation confirmation emails sent server-side",
+    "share_token on cancellation_entries: nanoid generated server-side on first 'Copy share link' click; /share/[token] resolves to the owner's full cancellation list",
+    "GET /api/settings/notifications returns current notification_preferences row for form pre-fill; POST /api/settings/notifications upserts the row"
+  ],
+  "codeConstraints": {
+    "language": "typescript",
+    "additiveOnly": true,
+    "suggestedFeatureRoot": "src/features/churn-diary/",
+    "doNotModifyPaths": [
+      "aria-build.config.json",
+      "middleware.ts",
+      "src/app/(app)/error.tsx",
+      "src/app/(app)/home/layout.tsx",
+      "src/app/(app)/layout.tsx",
+      "src/app/(app)/loading.tsx",
+      "src/app/(app)/not-found.tsx",
+      "src/app/(app)/settings/layout.tsx",
+      "src/app/(app)/settings/page.tsx",
+      "src/app/api/auth/[...all]/route.ts",
+      "src/app/global-error.tsx",
+      "src/components/app/app-shell.tsx",
+      "src/components/app/home-shell.tsx",
+      "src/components/app/settings-shell.tsx",
+      "src/lib/auth.ts",
+      "src/lib/server/secrets/encrypted-secret.ts",
+      "db/migrations/0001_better_auth.sql",
+      "db/migrations/0002_user_secrets.sql",
+      "db/migrations/0003_app_events.sql",
+      "db/migrations/0004_rate_limits.sql"
+    ]
+  },
+  "codegenPolicies": {
+    "unifiedSubscriptionGating": false,
+    "responsiveMobileFirst": true,
+    "externalAiUserSecrets": false
+  },
+  "navigation": {
+    "routeClasses": [
+      {
+        "route": "/home",
+        "kind": "home"
+      },
+      {
+        "route": "/home/cancellations/new",
+        "kind": "create"
+      },
+      {
+        "route": "/home/cancellations/[id]",
+        "kind": "detail"
+      },
+      {
+        "route": "/home/cancellations/[id]/edit",
+        "kind": "edit"
+      },
+      {
+        "route": "/home/trials/new",
+        "kind": "create"
+      },
+      {
+        "route": "/home/trials/[id]",
+        "kind": "detail"
+      },
+      {
+        "route": "/home/trials/[id]/edit",
+        "kind": "edit"
+      },
+      {
+        "route": "/settings",
+        "kind": "settings"
+      },
+      {
+        "route": "/settings/notifications",
+        "kind": "settings"
+      },
+      {
+        "route": "/share/[token]",
+        "kind": "share"
+      },
+      {
+        "route": "/api",
+        "kind": "api"
+      },
+      {
+        "route": "/login",
+        "kind": "auth"
+      },
+      {
+        "route": "/auth",
+        "kind": "auth"
+      }
+    ],
+    "homeHeaderActions": [
+      {
+        "label": "+ Log Cancellation",
+        "route": "/home/cancellations/new",
+        "showInEmptyState": true,
+        "showInPopulatedState": true
+      },
+      {
+        "label": "+ Add Trial",
+        "route": "/home/trials/new",
+        "showInEmptyState": true,
+        "showInPopulatedState": true
+      }
+    ],
+    "homeSubNav": [
+      {
+        "label": "Cancellations",
+        "route": "/home"
+      },
+      {
+        "label": "Active Trials",
+        "route": "/home"
+      }
+    ],
+    "routeReachability": [
+      {
+        "route": "/home/cancellations/new",
+        "reachableFrom": [
+          "home_header",
+          "list_row"
+        ]
+      },
+      {
+        "route": "/home/cancellations/[id]",
+        "reachableFrom": [
+          "list_row",
+          "breadcrumb"
+        ]
+      },
+      {
+        "route": "/home/cancellations/[id]/edit",
+        "reachableFrom": [
+          "list_row",
+          "breadcrumb"
+        ]
+      },
+      {
+        "route": "/home/trials/new",
+        "reachableFrom": [
+          "home_header",
+          "list_row"
+        ]
+      },
+      {
+        "route": "/home/trials/[id]",
+        "reachableFrom": [
+          "list_row",
+          "breadcrumb"
+        ]
+      },
+      {
+        "route": "/home/trials/[id]/edit",
+        "reachableFrom": [
+          "list_row",
+          "breadcrumb"
+        ]
+      },
+      {
+        "route": "/home",
+        "reachableFrom": [
+          "sidebar"
+        ]
+      },
+      {
+        "route": "/settings",
+        "reachableFrom": [
+          "sidebar"
+        ]
+      },
+      {
+        "route": "/settings/notifications",
+        "reachableFrom": [
+          "sidebar"
+        ]
+      },
+      {
+        "route": "/login",
+        "reachableFrom": [
+          "redirect"
+        ]
+      },
+      {
+        "route": "/auth",
+        "reachableFrom": [
+          "redirect"
+        ]
+      }
+    ]
+  },
+  "capabilities": {
+    "externalApiIntegrations": [
+      {
+        "provider": "resend",
+        "byok": false,
+        "intent": "Send transactional trial watchdog reminder emails and trial creation confirmations using platform Resend credentials"
+      }
+    ],
+    "multiTenancy": {
+      "perUserData": true
+    },
+    "publicShare": {
+      "publicShareRoutes": [
+        "/share/[token]"
+      ],
+      "expirable": false
+    },
+    "backgroundJobs": {
+      "schedules": [
+        "0 8 * * *"
+      ],
+      "intent": "Daily job at 08:00 UTC: find active trials within each user's reminder_days_before window, send one Resend reminder email per trial, set reminder_sent=true to prevent duplicate sends"
+    },
+    "emailNotifications": {
+      "intent": "Resend-backed transactional emails: configurable-day trial conversion reminder sent by background job; trial creation confirmation sent on new trial log",
+      "triggers": [
+        "trial_created",
+        "trial_reminder_due"
+      ]
+    }
+  },
+  "ariaBuildPricing": {
+    "monetizationMode": "has_free_tier",
+    "capturedAt": "2026-05-23T00:09:33.715Z",
+    "plans": [
+      {
+        "id": "starter",
+        "name": "Starter",
+        "amount": 0,
+        "currency": "USD",
+        "interval": "month",
+        "isFree": true
+      }
+    ]
+  },
+  "forms": [
+    {
+      "ref": "cancellations",
+      "purpose": "create",
+      "route": "/home/cancellations/new",
+      "submitName": "Log Cancellation",
+      "apiEndpoint": {
+        "method": "POST",
+        "path": "/api/cancellations"
+      },
+      "fields": [
+        {
+          "name": "serviceName",
+          "inputType": "text",
+          "label": "Service Name",
+          "placeholder": "e.g. Netflix, Spotify",
+          "required": true
+        },
+        {
+          "name": "cancelDate",
+          "inputType": "date",
+          "label": "Date Cancelled",
+          "required": true
+        },
+        {
+          "name": "monthlyCostSaved",
+          "inputType": "number",
+          "label": "Monthly Cost Saved (USD)",
+          "placeholder": "e.g. 14.99",
+          "required": false
+        },
+        {
+          "name": "reason",
+          "inputType": "select",
+          "label": "Why did you leave?",
+          "required": true,
+          "options": [
+            "price",
+            "quality",
+            "unused",
+            "found_better",
+            "other"
+          ]
+        },
+        {
+          "name": "reasonNotes",
+          "inputType": "textarea",
+          "label": "Any extra notes?",
+          "placeholder": "Optional details about why you left…",
+          "required": false
+        },
+        {
+          "name": "mood",
+          "inputType": "select",
+          "label": "How did you feel about cancelling?",
+          "required": true,
+          "options": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5"
+          ]
+        }
+      ],
+      "listRoute": "/home",
+      "dbTable": "cancellation_entries",
+      "dbTitleColumn": "service_name",
+      "appearsOn": [
+        {
+          "route": "/home",
+          "method": "text_scan"
+        }
+      ],
+      "requiresParents": []
+    },
+    {
+      "ref": "cancellations_edit",
+      "purpose": "edit",
+      "route": "/home/cancellations/[id]/edit",
+      "submitName": "Save Changes",
+      "apiEndpoint": {
+        "method": "PATCH",
+        "path": "/api/cancellations/[id]"
+      },
+      "fields": [
+        {
+          "name": "serviceName",
+          "inputType": "text",
+          "label": "Service Name",
+          "required": true
+        },
+        {
+          "name": "cancelDate",
+          "inputType": "date",
+          "label": "Date Cancelled",
+          "required": true
+        },
+        {
+          "name": "monthlyCostSaved",
+          "inputType": "number",
+          "label": "Monthly Cost Saved (USD)",
+          "required": false
+        },
+        {
+          "name": "reason",
+          "inputType": "select",
+          "label": "Why did you leave?",
+          "required": true,
+          "options": [
+            "price",
+            "quality",
+            "unused",
+            "found_better",
+            "other"
+          ]
+        },
+        {
+          "name": "reasonNotes",
+          "inputType": "textarea",
+          "label": "Any extra notes?",
+          "required": false
+        },
+        {
+          "name": "mood",
+          "inputType": "select",
+          "label": "How did you feel about cancelling?",
+          "required": true,
+          "options": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5"
+          ]
+        }
+      ],
+      "listRoute": "/home",
+      "dbTable": "cancellation_entries",
+      "dbTitleColumn": "service_name",
+      "appearsOn": [
+        {
+          "route": "/home",
+          "method": "text_scan"
+        },
+        {
+          "route": "/home/cancellations/[id]",
+          "method": "text_scan"
+        }
+      ],
+      "requiresParents": []
+    },
+    {
+      "ref": "trials",
+      "purpose": "create",
+      "route": "/home/trials/new",
+      "submitName": "Add Trial",
+      "apiEndpoint": {
+        "method": "POST",
+        "path": "/api/trials"
+      },
+      "fields": [
+        {
+          "name": "serviceName",
+          "inputType": "text",
+          "label": "Service Name",
+          "placeholder": "e.g. Hulu, Duolingo Plus",
+          "required": true
+        },
+        {
+          "name": "trialStartDate",
+          "inputType": "date",
+          "label": "Trial Start Date",
+          "required": true
+        },
+        {
+          "name": "trialConversionDate",
+          "inputType": "date",
+          "label": "Trial Converts On",
+          "required": true
+        },
+        {
+          "name": "notes",
+          "inputType": "textarea",
+          "label": "Notes",
+          "placeholder": "Optional reminders for yourself…",
+          "required": false
+        }
+      ],
+      "listRoute": "/home",
+      "dbTable": "trial_entries",
+      "dbTitleColumn": "service_name",
+      "appearsOn": [
+        {
+          "route": "/home",
+          "method": "text_scan"
+        }
+      ],
+      "requiresParents": []
+    },
+    {
+      "ref": "trials_edit",
+      "purpose": "edit",
+      "route": "/home/trials/[id]/edit",
+      "submitName": "Save Changes",
+      "apiEndpoint": {
+        "method": "PATCH",
+        "path": "/api/trials/[id]"
+      },
+      "fields": [
+        {
+          "name": "serviceName",
+          "inputType": "text",
+          "label": "Service Name",
+          "required": true
+        },
+        {
+          "name": "trialStartDate",
+          "inputType": "date",
+          "label": "Trial Start Date",
+          "required": true
+        },
+        {
+          "name": "trialConversionDate",
+          "inputType": "date",
+          "label": "Trial Converts On",
+          "required": true
+        },
+        {
+          "name": "notes",
+          "inputType": "textarea",
+          "label": "Notes",
+          "required": false
+        },
+        {
+          "name": "status",
+          "inputType": "select",
+          "label": "Status",
+          "required": true,
+          "options": [
+            "active",
+            "cancelled",
+            "converted"
+          ]
+        }
+      ],
+      "listRoute": "/home",
+      "dbTable": "trial_entries",
+      "dbTitleColumn": "service_name",
+      "appearsOn": [
+        {
+          "route": "/home",
+          "method": "text_scan"
+        },
+        {
+          "route": "/home/trials/[id]",
+          "method": "text_scan"
+        }
+      ],
+      "requiresParents": []
+    }
+  ],
+  "deleteFlows": [
+    {
+      "ref": "delete_cancellation",
+      "formRef": "cancellations_edit",
+      "surface": "detail_page",
+      "controlName": "Delete",
+      "confirmName": "Confirm Delete"
+    },
+    {
+      "ref": "delete_trial",
+      "formRef": "trials_edit",
+      "surface": "detail_page",
+      "controlName": "Delete",
+      "confirmName": "Confirm Delete"
+    }
+  ],
+  "settingsForms": [
+    {
+      "ref": "notification_preferences",
+      "tabSlug": "notifications",
+      "submitName": "Save Changes",
+      "apiEndpoint": {
+        "method": "POST",
+        "path": "/api/settings/notifications"
+      },
+      "fields": [
+        {
+          "name": "emailEnabled",
+          "inputType": "checkbox",
+          "label": "Send email reminders before trials convert",
+          "required": false
+        },
+        {
+          "name": "reminderDaysBefore",
+          "inputType": "number",
+          "label": "Days before conversion to send reminder",
+          "placeholder": "7",
+          "required": true
+        }
+      ],
+      "persistence": {
+        "kind": "get_roundtrip",
+        "getEndpoint": "/api/settings/notifications",
+        "returnedField": "reminderDaysBefore"
+      }
+    }
+  ],
+  "scheduledActions": [],
+  "transitions": [
+    {
+      "ref": "trial_mark_cancelled",
+      "formRef": "trials_edit",
+      "surface": "detail_page",
+      "controlName": "Mark as Cancelled",
+      "dbColumn": "status",
+      "fromValue": "active",
+      "toValue": "cancelled"
+    },
+    {
+      "ref": "trial_mark_converted",
+      "formRef": "trials_edit",
+      "surface": "detail_page",
+      "controlName": "Mark as Converted",
+      "dbColumn": "status",
+      "fromValue": "active",
+      "toValue": "converted"
+    }
+  ],
+  "integrationTouchpoints": [
+    {
+      "ref": "resend_trial_reminder",
+      "providerSlug": "resend",
+      "testability": "requires_real_credentials"
+    }
+  ],
+  "featureContracts": [
+    {
+      "ref": "trial_watchdog_email",
+      "title": "7-Day Trial Conversion Reminder Email",
+      "primaryRoutes": [
+        "/home/trials/new",
+        "/home/trials/[id]",
+        "/settings/notifications"
+      ],
+      "behavior": "A daily background job (cron 0 8 * * *) queries all trial_entries WHERE status='active' AND reminder_sent=false AND trial_conversion_date <= (CURRENT_DATE + notification_preferences.reminder_days_before * INTERVAL '1 day'). For each matching row where email_enabled=true, the job calls sendEmail once with subject 'Your [serviceName] trial converts soon' and sets reminder_sent=true. A separate single sendEmail call fires immediately on POST /api/trials (trial_created trigger) to confirm the watchdog is active. Max 1 reminder email per trial (reminder_sent prevents duplicates). Resend failures are logged to app_events; the job continues processing remaining rows.",
+      "acceptanceCriteria": [
+        "Given a trial with conversion_date = today + 7 and email_enabled=true, when the daily job runs, then exactly one reminder email is sent and reminder_sent becomes true",
+        "Given reminder_sent=true on a trial, when the job runs again, then no additional email is sent",
+        "Given email_enabled=false, when the job runs, then no email is sent even if within the reminder window",
+        "Given a new trial is submitted, then exactly one confirmation email is sent immediately via Resend",
+        "Given the Resend call fails, then the error is written to app_events and the job continues without crashing"
+      ]
+    },
+    {
+      "ref": "public_cancellation_diary",
+      "title": "Public Share Link for Cancellation Diary",
+      "primaryRoutes": [
+        "/home/cancellations/[id]",
+        "/share/[token]"
+      ],
+      "behavior": "When a user clicks 'Copy share link' on /home/cancellations/[id], the server checks cancellation_entries.share_token for that row. If null, it generates a nanoid token, writes it to share_token, and returns the full /share/[token] URL. The client copies the URL to clipboard via the Clipboard API. /share/[token] is a public Next.js route (no session required) that resolves the token to the owner's full cancellation_entries list. It renders service_name, reason, mood, and cancel_date for each entry but omits monthly_cost_saved. An invalid token renders a 404-style 'Diary not found' page.",
+      "acceptanceCriteria": [
+        "Given no existing share_token, clicking 'Copy share link' writes a new token to the DB and copies the URL to clipboard",
+        "Given an existing share_token, the same URL is returned without a DB write",
+        "Given an unauthenticated visitor navigates to /share/[token], they see service_name, reason, mood, and cancel_date but no cost figures",
+        "Given an invalid token, /share/[token] renders a 'Diary not found' message"
+      ]
+    }
+  ]
+}
